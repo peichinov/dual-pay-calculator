@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DualPay - Ресто калкулатор</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        :root {
+            --bg-pastel-blue: #e0eafc;
+            --accent-beige: #f5f5dc;
+            --deep-purple: #4b0082;
+            --cyan-input: #e0f7fa;
+            --fixed-rate: 1.95583;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--bg-pastel-blue);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1, h2, .logo-text {
+            font-family: 'Comfortaa', cursive;
+        }
+
+        /* Динамичен фон */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            z-index: -1;
+            opacity: 0.15;
+            padding: 20px;
+        }
+
+        .symbol {
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: float 8s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0,0) rotate(0deg) scale(1); }
+            33% { transform: translate(15px, -20px) rotate(5deg) scale(1.1); }
+            66% { transform: translate(-10px, 15px) rotate(-5deg) scale(0.9); }
+        }
+
+        /* Стъклен ефект */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .input-cyan { background-color: var(--cyan-input); }
+        .btn-beige { background-color: #d2b48c; color: #333; }
+        .btn-beige:active { transform: scale(0.95); }
+        .logo-box { background-color: var(--deep-purple); color: #f5f5dc; }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div id="bg-grid" class="bg-grid"></div>
+
+    <main class="w-full max-w-md p-4 h-full flex flex-col justify-center">
+        <div class="glass-card rounded-[2.5rem] p-6 space-y-6">
+            
+            <div class="flex items-center justify-between">
+                <div class="logo-box px-4 py-2 rounded-2xl flex items-center space-x-2 shadow-lg">
+                    <span class="logo-text text-xl">€ ⇄ лв</span>
+                </div>
+                <h1 class="text-indigo-900 text-xl font-bold">DualPay</h1>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-gray-600 ml-1">Сума за плащане</label>
+                <div class="flex space-x-2">
+                    <input type="number" id="billAmount" placeholder="0.00" 
+                        class="input-cyan w-full p-4 rounded-2xl text-2xl font-bold focus:outline-none border-2 border-transparent focus:border-cyan-400 transition-all">
+                    <select id="billCurrency" class="p-4 rounded-2xl bg-white font-bold border-none shadow-sm">
+                        <option value="BGN">лв</option>
+                        <option value="EUR">€</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 ml-1">Платено в лв</label>
+                    <input type="number" id="paidBGN" placeholder="0.00" 
+                        class="w-full p-3 rounded-xl bg-white/70 focus:outline-none border-none">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-gray-500 ml-1">Платено в €</label>
+                    <input type="number" id="paidEUR" placeholder="0.00" 
+                        class="w-full p-3 rounded-xl bg-white/70 focus:outline-none border-none">
+                </div>
+            </div>
+
+            <div id="errorBox" class="hidden bg-red-100 text-red-600 p-3 rounded-xl text-center text-sm font-semibold animate-pulse">
+                Сумата е недостатъчна!
+            </div>
+
+            <div id="resultSection" class="hidden fade-in space-y-4">
+                <hr class="border-gray-200">
+                <div class="flex justify-between items-center">
+                    <span class="font-semibold text-gray-700">Ресто в:</span>
+                    <div class="flex bg-gray-200/50 p-1 rounded-xl">
+                        <button onclick="setResultCurrency('BGN')" id="btnBGN" class="px-4 py-1 rounded-lg text-sm font-bold transition-all btn-beige shadow-sm">BGN</button>
+                        <button onclick="setResultCurrency('EUR')" id="btnEUR" class="px-4 py-1 rounded-lg text-sm font-bold transition-all">EUR</button>
+                    </div>
+                </div>
+                <div class="text-center bg-white/40 p-5 rounded-[2rem] border border-white/50">
+                    <div id="mainChange" class="text-4xl font-bold text-indigo-900 tracking-tight">0.00 лв</div>
+                    <div id="secondaryChange" class="text-sm text-gray-500 mt-1">еквивалент: 0.00 €</div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="mt-8 text-center text-[10px] text-indigo-800/60 uppercase tracking-widest leading-loose">
+            Курс: 1 EUR = 1.95583 BGN <br>
+            <span class="font-bold">© [RPeychinov]</span>
+        </footer>
+    </main>
+
+    <script>
+        const RATE = 1.95583;
+        let resultCurrency = 'BGN';
+
+        // Генериране на фон
+        const bgGrid = document.getElementById('bg-grid');
+        for (let i = 0; i < 24; i++) {
+            const div = document.createElement('div');
+            div.className = 'symbol';
+            div.innerText = i % 2 === 0 ? 'лв' : '€';
+            div.style.animationDelay = `${Math.random() * 5}s`;
+            bgGrid.appendChild(div);
+        }
+
+        // Логика за изчисление
+        const inputs = ['billAmount', 'billCurrency', 'paidBGN', 'paidEUR'];
+        inputs.forEach(id => document.getElementById(id).addEventListener('input', calculate));
+
+        function setResultCurrency(curr) {
+            resultCurrency = curr;
+            document.getElementById('btnBGN').className = curr === 'BGN' ? 'px-4 py-1 rounded-lg text-sm font-bold btn-beige shadow-sm' : 'px-4 py-1 rounded-lg text-sm font-bold';
+            document.getElementById('btnEUR').className = curr === 'EUR' ? 'px-4 py-1 rounded-lg text-sm font-bold btn-beige shadow-sm' : 'px-4 py-1 rounded-lg text-sm font-bold';
+            calculate();
+        }
+
+        function calculate() {
+            const bill = parseFloat(document.getElementById('billAmount').value) || 0;
+            const billCurr = document.getElementById('billCurrency').value;
+            const paidBGN = parseFloat(document.getElementById('paidBGN').value) || 0;
+            const paidEUR = parseFloat(document.getElementById('paidEUR').value) || 0;
+
+            // Всичко към BGN за база
+            const billInBGN = billCurr === 'EUR' ? bill * RATE : bill;
+            const totalPaidInBGN = paidBGN + (paidEUR * RATE);
+            const changeInBGN = totalPaidInBGN - billInBGN;
+
+            const errorBox = document.getElementById('errorBox');
+            const resultSection = document.getElementById('resultSection');
+
+            if (totalPaidInBGN < billInBGN && billInBGN > 0) {
+                errorBox.classList.remove('hidden');
+                resultSection.classList.add('hidden');
+            } else if (billInBGN > 0) {
+                errorBox.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+                displayResults(changeInBGN);
+            } else {
+                resultSection.classList.add('hidden');
+            }
+        }
+
+        function displayResults(bgnChange) {
+            const eurChange = bgnChange / RATE;
+            
+            if (resultCurrency === 'BGN') {
+                document.getElementById('mainChange').innerText = `${bgnChange.toFixed(2)} лв`;
+                document.getElementById('secondaryChange').innerText = `еквивалент: ${eurChange.toFixed(2)} €`;
+            } else {
+                document.getElementById('mainChange').innerText = `${eurChange.toFixed(2)} €`;
+                document.getElementById('secondaryChange').innerText = `еквивалент: ${bgnChange.toFixed(2)} лв`;
+            }
+        }
+
+        // PWA ЛОГИКА - Динамично генериране на Manifest и Service Worker
+        (function setupPWA() {
+            // 1. Създаване на икона чрез Canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#4b0082';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 512, 512, 100);
+            ctx.fill();
+            ctx.fillStyle = '#f5f5dc';
+            ctx.font = 'bold 120px Comfortaa, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('€ ⇄ лв', 256, 280);
+            const iconUrl = canvas.toDataURL('image/png');
+
+            // 2. Web Manifest
+            const manifest = {
+                name: 'DualPay Change',
+                short_name: 'DualPay',
+                start_url: '.',
+                display: 'standalone',
+                background_color: '#e0eafc',
+                theme_color: '#4b0082',
+                icons: [{ src: iconUrl, sizes: '512x512', type: 'image/png' }]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+            const manifestURL = URL.createObjectURL(manifestBlob);
+            const link = document.createElement('link');
+            link.rel = 'manifest';
+            link.href = manifestURL;
+            document.head.appendChild(link);
+
+            // 3. Service Worker
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+            `;
+            const swBlob = new Blob([swCode], {type: 'application/javascript'});
+            const swURL = URL.createObjectURL(swBlob);
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register(swURL);
+            }
+        })();
+    </script>
+</body>
+</html>
